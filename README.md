@@ -56,10 +56,27 @@ Puedes iniciar CINA de dos formas:
 
 ## Configuración de la API Key
 
-1. **Obtén tu clave gratuita** en [Google AI Studio](https://aistudio.google.com/).
-2. En la ventana de la aplicación, ingresa tu clave en el campo **Gemini API Key** y pulsa **Guardar**.
-   - *Tip*: Puedes ingresar varias claves separadas por comas para rotación automática si alcanzas los límites de cuota gratuita.
-   - También puedes definir la variable de entorno de Windows: `setx GEMINI_API_KEY "tu-clave"`.
+Tienes 3 formas sencillas de configurar tu clave:
+
+### Opción 1: Directamente en la Interfaz Gráfica (Recomendada)
+1. Abre la aplicación ejecutando `run.bat`.
+2. Pega tu clave en el campo **Gemini API Key**.
+3. Pulsa el botón **🔑 Probar Clave** para comprobar al instante que funciona.
+4. Pulsa **Guardar** (o simplemente presiona *Capturar y Responder*; el sistema auto-sincronizará la clave).
+   - *Nota*: Si copiaste la clave con comillas o espacios por error, el sistema los limpia automáticamente.
+
+### Opción 2: Mediante Archivo `.env` en la Carpeta del Proyecto
+Copia el archivo `.env.example` a `.env` (o crea un archivo llamado `.env` en la carpeta `cina-windows`):
+```env
+GEMINI_API_KEY=tu_clave_aqui_sin_comillas
+```
+
+### Opción 3: Variable de Entorno del Sistema en Windows
+En una consola de comandos (CMD) ejecuta:
+```cmd
+setx GEMINI_API_KEY "tu_clave_aqui"
+```
+*(Luego reinicia la aplicación para que tome la nueva variable de entorno).*
 
 ---
 

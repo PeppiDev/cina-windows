@@ -18,6 +18,7 @@ from cina.hotkey_service import HotkeyService
 def run_oneshot():
     """Ejecuta una captura y respuesta directa sin interfaz gráfica (modo autónomo / trigger)."""
     print("[Cina-Win] Ejecutando captura silenciosa...")
+    config_mgr.load()
     cap = ScreenCapture(preferred_backend=config_mgr.get("capture_backend", "pillow"))
     gemini = GeminiService(
         api_key=config_mgr.get("api_key", ""),
@@ -74,6 +75,7 @@ def run_headless():
     """Ejecuta el demonio en segundo plano sin ventana gráfica en Windows."""
     import time
     print("[Cina-Win] Iniciando en modo demonio (Headless)... Presiona Ctrl+C para salir.")
+    config_mgr.load()
     hotkey = HotkeyService(
         hotkey_str=config_mgr.get("hotkey", "<ctrl>+<alt>+s"),
         on_trigger=run_oneshot
@@ -111,4 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

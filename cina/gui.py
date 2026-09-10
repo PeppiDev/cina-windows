@@ -8,7 +8,7 @@ from tkinter import ttk, messagebox
 from typing import Optional
 from PIL import Image, ImageTk
 
-from cina.config import config_mgr, AVAILABLE_VOICES, AVAILABLE_MODELS
+from cina.config import config_mgr, AVAILABLE_VOICES, AVAILABLE_MODELS, clean_api_key_str
 from cina.capture import ScreenCapture
 from cina.gemini_service import GeminiService
 from cina.tts_service import TTSService
@@ -19,8 +19,8 @@ class CinaApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Cina - Asistente de Pantalla y Audio con IA (Windows)")
-        self.root.geometry("840x730")
-        self.root.minsize(720, 620)
+        self.root.geometry("860x740")
+        self.root.minsize(740, 620)
 
         # Configuración de colores estilo Modern Dark (Fluent / Breeze)
         self.bg_color = "#1e2227"
@@ -34,6 +34,9 @@ class CinaApp:
         self.border_color = "#3e4451"
 
         self.root.configure(bg=self.bg_color)
+
+        # Asegurar carga fresca de configuración
+        config_mgr.load()
 
         # Servicios
         self.capture_service = ScreenCapture(preferred_backend=config_mgr.get("capture_backend", "pillow"))
@@ -82,6 +85,9 @@ class CinaApp:
 
         style.configure("Action.TButton", font=("Segoe UI", 10), background="#3e4451", foreground="#ffffff", borderwidth=0, padding=6)
         style.map("Action.TButton", background=[("active", "#4c5363")])
+
+        style.configure("Success.TButton", font=("Segoe UI", 10, "bold"), background="#27ae60", foreground="#ffffff", borderwidth=0, padding=6)
+        style.map("Success.TButton", background=[("active", "#2ecc71")])
 
         style.configure("Stop.TButton", font=("Segoe UI", 10), background="#c0392b", foreground="#ffffff", borderwidth=0, padding=6)
         style.map("Stop.TButton", background=[("active", "#e74c3c")])
@@ -160,12 +166,15 @@ class CinaApp:
         self.btn_show_key = ttk.Button(key_frame, text="👁", width=3, style="Action.TButton", command=self._toggle_show_key)
         self.btn_show_key.pack(side="left", padx=(0, 4))
 
-        self.btn_save_key = ttk.Button(key_frame, text="Guardar", style="Action.TButton", command=self._save_api_key)
+        self.btn_test_key = ttk.Button(key_frame, text="🔑 Probar Clave", style="Action.TButton", command=self._test_api_key)
+        self.btn_test_key.pack(side="left", padx=(0, 4))
+
+        self.btn_save_key = ttk.Button(key_frame, text="Guardar", style="Success.TButton", command=self._save_api_key)
         self.btn_save_key.pack(side="left")
 
         ttk.Label(
             config_card,
-            text="💡 Tip: Puedes ingresar varias claves separadas por coma para rotar automáticamente ante límites de cuota (429).",
+            text="💡 Tip: Obtén tu clave en https://aistudio.google.com/. Puedes ingresar varias claves separadas por coma para rotación automática ante límites de cuota (429).",
             font=("Segoe UI", 8),
             foreground="#8a93a2",
             style="Card.TLabel"
@@ -178,7 +187,7 @@ class CinaApp:
         # Selector de Modelo
         ttk.Label(opts_frame, text="Modelo IA:", width=15, style="Card.TLabel").pack(side="left")
         self.model_var = tk.StringVar(value=config_mgr.get("model", "gemini-3.7-flash"))
-        model_combo = ttk.Combobox(opts_frame, textvariable=self.model_var, values=[m[0] for m in AVAILABLE_MODELS], state="readonly", width=18)
+        model_combo = ttk.Combobox(opts_frame, textvariable=self.model_var, values=[m[0] for m in AVAILABLE_MODELS], state="readonly", width=22)
         model_combo.pack(side="left", padx=(0, 12))
         model_combo.bind("<<ComboboxSelected>>", self._on_model_changed)
 
@@ -250,10 +259,42 @@ class CinaApp:
             self.btn_show_key.configure(text="🔒")
 
     def _save_api_key(self):
-        key = self.api_key_var.get().strip()
-        config_mgr.set("api_key", key)
-        self.gemini_service.set_api_key(key)
-        messagebox.showinfo("Guardado", "API Key de Gemini guardada correctamente en Windows.")
+        raw_key = self.api_key_var.get().strip()
+        cleaned_key = clean_api_key_str(raw_key)
+        self.api_key_var.set(cleaned_key)
+        config_mgr.set("api_key", cleaned_key)
+        self.gemini_service.set_api_key(cleaned_key)
+        self.update_status("🟢 API Key guardada con éxito", self.success_color)
+        messagebox.showinfo("Guardado", "API Key de Gemini guardada y sanitizada correctamente.")
+
+    def _test_api_key(self):
+        raw_key = self.api_key_var.get().strip()
+        cleaned_key = clean_api_key_str(raw_key)
+        if not cleaned_key:
+            messagebox.showwarning("API Key Vacía", "Por favor ingresa primero tu API Key en el campo de texto.")
+            return
+
+        # Sincronizar y probar
+        self.api_key_var.set(cleaned_key)
+        config_mgr.set("api_key", cleaned_key)
+        self.gemini_service.set_api_key(cleaned_key)
+
+        self.update_status("🟡 Probando API Key con Gemini...", self.warning_color)
+        self.btn_test_key.configure(state="disabled")
+
+        def worker():
+            ok, msg = self.gemini_service.test_connection()
+            def finish():
+                self.btn_test_key.configure(state="normal")
+                if ok:
+                    self.update_status("🟢 API Key válida y conectada", self.success_color)
+                    messagebox.showinfo("Prueba Exitosa", msg)
+                else:
+                    self.update_status("🔴 Error en API Key", self.error_color)
+                    messagebox.showerror("Fallo de Conexión", msg)
+            self.root.after(0, finish)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _on_model_changed(self, event=None):
         model = self.model_var.get()
@@ -301,6 +342,12 @@ class CinaApp:
         if self.is_processing:
             print("[Cina] Ya hay una solicitud en curso, ignorando...")
             return
+
+        # Sincronizar SIEMPRE la API Key actual escrita en la ventana antes de disparar
+        current_entry_key = clean_api_key_str(self.api_key_var.get().strip())
+        if current_entry_key:
+            config_mgr.set("api_key", current_entry_key)
+            self.gemini_service.set_api_key(current_entry_key)
 
         self.is_processing = True
 
@@ -387,4 +434,3 @@ class CinaApp:
         self.hotkey_service.stop()
         self.tts_service.stop()
         self.root.destroy()
-
