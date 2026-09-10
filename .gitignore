@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Temporales de captura y audio
+*.png
+*_opt.jpg
+*.mp3
+*.wav
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Configuración local con posibles credenciales
+config.json
+
